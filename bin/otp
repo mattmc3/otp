@@ -3,7 +3,7 @@
 
 ##? otp: Print one-time-passwords from your console
 ##?
-##? usage: otp [-h|--help] [-l|--list] [-a|--add] [-r|--remove] <key>
+##? usage: otp [-h | --help] [-l | --list] [-a | --add] [-r | --remove] <key>
 ##?
 
 # To check, run: shellcheck -e SC3043 ./bin/otp
@@ -16,7 +16,7 @@ is_function() {
   type "$1" | sed "s/$1//" | grep -qwi function
 }
 
-# Display otp help comments
+##? -h, --help     Display otp help comments
 otp_help() {
   grep "^##?" "$0" | cut -c 5-
 }
@@ -33,6 +33,12 @@ otp_check_reqs() {
   fi
 }
 
+##? -l, --list     List keys
+otp_list() {
+  find "$OTP_HOME" -type f -print0 -name \*.otp.asc | xargs -0 basename -s .otp.asc
+}
+
+##? -r, --remove   Remove existing key
 otp_remove() {
   if [ -z "$1" ]; then
     echo >&2 "otp: Expecting <key> argument. Run 'opt -h' for usage."
@@ -46,6 +52,7 @@ otp_remove() {
   fi
 }
 
+##? -a, --add      Add OTP key
 otp_add() {
   if [ -e "$OTP_HOME/$1.otp.asc" ]; then
     echo >&2 "otp: Key already exists '$1'. To remove key, run 'otp --remove \"$1\"'."
@@ -82,7 +89,7 @@ otp() {
       -a|--add)    f_add="$1"          ;;
       -r|--remove) f_remove="$1"       ;;
       -*)          f_bad="$1";   break ;;
-      *)           break               ;;
+      *)                         break ;;
     esac
     shift
   done
@@ -94,7 +101,7 @@ otp() {
     otp_help
     return
   elif [ -n "$f_list" ]; then
-    find "$OTP_HOME" -type f -print0 -name \*.otp.asc | xargs -0 basename -s .otp.asc
+    otp_list
     return
   fi
 
@@ -111,5 +118,7 @@ otp() {
   fi
 }
 otp "$@"
+
+##? <key>          Name of the desired key
 
 # vim: set sw=2 sts=2 ts=8 et:
