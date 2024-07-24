@@ -60,9 +60,10 @@ otp_add() {
   fi
 
   echo "The 'otp' utility works by using gpg to encrypt your OTP key."
-  echo "First, enter the email address associated your GPG private key. You can add multiple."
-  echo "When done, press enter to end with an empty line."
+  echo "First, enter the email address associated your GPG key. You can add multiple."
+  echo "When done adding recipients, press enter to end with an empty line."
   echo "Next, you will paste your OTP secret key, followed by ^D to end the GPG message."
+  echo "--- GPG DIALOG BELOW ---"
   gpg --armor --encrypt --output "$OTP_HOME/$1.otp.asc" /dev/stdin
 }
 
