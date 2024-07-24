@@ -1,0 +1,115 @@
+#!/bin/sh
+# optionally, use !/usr/bin/env dash to really test POSIX
+
+##? otp: Print one-time-passwords from your console
+##?
+##? usage: otp [-h|--help] [-l|--list] [-a|--add] [-r|--remove] <key>
+##?
+
+# To check, run: shellcheck -e SC3043 ./bin/otp
+
+[ -n "$OTP_HOME" ] || OTP_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/otp"
+
+# POSIX test for function existance.
+is_function() {
+  [ "$#" -eq 1 ] || return 1
+  type "$1" | sed "s/$1//" | grep -qwi function
+}
+
+# Display otp help comments
+otp_help() {
+  grep "^##?" "$0" | cut -c 5-
+}
+
+otp_check_reqs() {
+  if ! command -v oathtool > /dev/null 2>&1; then
+    echo >&2 "otp: 'oathtool' not found. Install oathtool or oath-toolkit, depending on your OS."
+    return 1
+  fi
+
+  if ! command -v gpg > /dev/null 2>&1; then
+    echo >&2 "otp: 'gpg' not found. Install, and create a key with 'gpg --gen-key' if you don't already have one."
+    return 1
+  fi
+}
+
+otp_remove() {
+  if [ -z "$1" ]; then
+    echo >&2 "otp: Expecting <key> argument. Run 'opt -h' for usage."
+    return 2
+  fi
+  if [ -e "$OTP_HOME/$1.otp.asc" ]; then
+    rm -f "$OTP_HOME/$1.otp.asc"
+  else
+    echo >&2 "otp: Key not found '$1'."
+    return 1
+  fi
+}
+
+otp_add() {
+  if [ -e "$OTP_HOME/$1.otp.asc" ]; then
+    echo >&2 "otp: Key already exists '$1'. To remove key, run 'otp --remove \"$1\"'."
+    return 1
+  fi
+
+  echo "The 'otp' utility works by using gpg to encrypt your OTP key."
+  echo "First, enter the email address associated your GPG private key. You can add multiple."
+  echo "When done, press enter to end with an empty line."
+  echo "Next, you will paste your OTP secret key, followed by ^D to end the GPG message."
+  gpg --armor --encrypt --output "$OTP_HOME/$1.otp.asc" /dev/stdin
+}
+
+otp_show() {
+  if [ ! -f "$OTP_HOME/$1.otp.asc" ]; then
+    echo "otp: missing key '$1'. Run 'otp --add <key>' to add a new one-time password."
+    return 1
+  fi
+  local totpkey
+  totpkey="$(gpg --quiet --decrypt "$OTP_HOME/$1.otp.asc")"
+  oathtool --totp --b "$totpkey"
+}
+
+otp() {
+  otp_check_reqs || return $?
+
+  local f_bad f_help f_list f_add f_remove
+
+  while [ "${#}" -ne 0 ]; do
+    case $1 in
+      --)          shift;        break ;;
+      -h|--help)   f_help="$1"         ;;
+      -l|--list)   f_list="$1"         ;;
+      -a|--add)    f_add="$1"          ;;
+      -r|--remove) f_remove="$1"       ;;
+      -*)          f_bad="$1";   break ;;
+      *)           break               ;;
+    esac
+    shift
+  done
+
+  if [ -n "$f_bad" ]; then
+    echo >&2 "otp: Unexpected flag '$f_bad'. Run 'otp -h' for usage."
+    return 2
+  elif [ -n "$f_help" ]; then
+    otp_help
+    return
+  elif [ -n "$f_list" ]; then
+    find "$OTP_HOME" -type f -print0 -name \*.otp.asc | xargs -0 basename -s .otp.asc
+    return
+  fi
+
+  if [ -z "$1" ]; then
+    echo >&2 "otp: Expecting <key> argument. Run 'opt -h' for usage."
+    return 1
+  fi
+  if [ -n "$f_add" ]; then
+    otp_add "$@"
+  elif [ -n "$f_remove" ]; then
+    otp_remove "$@"
+  else
+    otp_show "$@"
+  fi
+}
+otp "$@"
+
+# vim: set sw=2 sts=2 ts=8 et:
