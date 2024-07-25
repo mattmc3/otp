@@ -76,6 +76,10 @@ function otp --description "One-time passwords"
         command rm -f $OTP_HOME/$argv.otp.asc
     else
         set -l totpkey (gpg $recipients --quiet --decrypt $OTP_HOME/$argv.otp.asc)
-        oathtool --totp --b $totpkey | tee /dev/stderr | pbcopy
+        if type -q pbcopy
+            oathtool --totp --b $totpkey | tee /dev/stderr | pbcopy
+        else
+            oathtool --totp --b $totpkey
+        end
     end
 end
